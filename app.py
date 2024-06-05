@@ -111,9 +111,4 @@ def hello_world():  # put application's code here
 
 if __name__ == '__main__':
     print('start')
-    # od_pair_process.get_od_points_filter_by_day_and_hour(5, 1, 2, 8, 10)
     app.run(port=5000, host='0.0.0.0')
-    # region = get_region()
-    # cache.set('region', region)
-    # # ==_asdfas2
-    # _thread.start_new_thread(app.run(port=5000, host='0.0.0.0'))
