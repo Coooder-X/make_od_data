@@ -37,6 +37,7 @@
 <img src=".\img\20240605213347.png" width="700"/>
 而下图中的代码运行的 `networkx.algorithms.community.greedy_modularity_communities` 是对应论文中的 GM 的传统方法。**需要执行哪个方法就将对应的代码片段取消注释，并注释掉另一个方法的代码。**
 <img src=".\img\20240605213620.png" width="700"/>
+
 #### 查看实验结果
 - 若是运行传统的方法，则仅有控制台输出，除去无用的 log 外，带有字样 **“社区发现结果为:xxxx”** 一行的输出即为社区发现结果，如：
 `greedy_modularity_communities社区发现结果为:  [[65, 84, 77, 58, 45, 47], [33, 18, 6, 26, 15], [72, 42, 70]]`
