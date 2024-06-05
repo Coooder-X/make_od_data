@@ -65,7 +65,7 @@ def save_selected_data():
     # 保存前端的json数据
     json_str = json.dumps(selected_pair)
     # 将 JSON 字符串写入文件
-    with open(increase_filename('od_graph', 'json', 3, 'json_data'), 'w') as f:
+    with open(increase_filename('od_graph', 'json', 1, 'json_data'), 'w') as f:
         f.write(json_str)
 
     selected_od_trj_dict = {}

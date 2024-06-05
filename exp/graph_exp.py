@@ -189,13 +189,6 @@ def get_origin_graph_by_selected_cluster(out_adj_dict, data_id):
     return g, out_adj_dict
 
 
-# month = 5
-# # start_day, end_day = 11, 12
-# start_day, end_day = 12, 14
-# # start_hour, end_hour = 18, 20
-# start_hour, end_hour = 8, 10
-
-
 def get_grid_split(data_id):
     out_adj_table = {}
     with open(f"../json_data/od_graph_{data_id}.json") as json_g:
@@ -401,7 +394,7 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
                 #     trj_labels.append(c)
                 # print('trj==', trj_labels)
                 # communities = trj_labels[0]
-                # print('=====> communities2=', communities)
+                # print('louvain 社区发现结果为: ', communities)
                 # node_name_cluster_dict = {}
                 # cluster_point_dict = {}
                 # for (i, cluster) in enumerate(communities):
@@ -468,7 +461,7 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
                     trj_labels.append(list(c))
                 print('trj==', trj_labels)
                 communities = trj_labels
-                print('=====> communities2=', communities)
+                print('greedy_modularity_communities社区发现结果为: ', communities)
                 node_name_cluster_dict = {}
                 cluster_point_dict = {}
                 for (i, cluster) in enumerate(communities):
@@ -492,7 +485,7 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
                 print('实际有效社区个数: ', len(cluster_point_dict.keys()))
                 exp3_log.append(f'实际有效社区个数: {get_ok_cluster_num(cluster_point_dict)}')
                 print('cluster_point_dict', cluster_point_dict)
-                # vis_community(cluster_point_dict, selected_od_trj_dict)
+                vis_community(cluster_point_dict, selected_od_trj_dict)
         # print(
         #     f'=========> feat len={len(features)}  nodename len={len(related_node_names)}  label len={len(trj_labels)}')
         # print(list(trj_labels))
@@ -531,43 +524,9 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
         f.write(log + '\n')
     f.close()
 
-    # return {
-    #     # 'force_nodes': force_nodes,
-    #     # 'force_edges': force_edges,
-    #     'filtered_adj_dict': filtered_adj_dict,
-    #     'cid_center_coord_dict': cid_center_coord_dict,
-    #     'community_group': cluster_point_dict,
-    #     'tsne_points': tsne_points,
-    #     'trj_labels': trj_labels,  # 每个节点（OD对）的社区label，与 tsne_points 顺序对应
-    #     'related_node_names': related_node_names,
-    #     'tmp_trj_idxs': related_node_names,  # 与 tsne_points 顺序对应,
-    #     'node_name_cluster_dict': node_name_cluster_dict
-    #     # 'tid_trip_dict': tid_trip_dict,
-    # }
-
 
 if __name__ == '__main__':
-    def print_time():  # 无限循环
-        print('-------------------->>>>  start')
-        while True:  # 获取当前的时间
-            current_time = time.ctime(time.time())  # 输出线程的名字和时间
-            print('keep live', current_time)  # 休眠10分钟，即600秒 time.sleep(600)
-            time.sleep(600)
-
-
-    # thread = threading.Thread(target=print_time)
-    # thread.start()
-
     od_region = get_region()
-    # cell_id_center_coord_dict = get_cell_id_center_coord_dict(od_region)
-    # for key in cell_id_center_coord_dict:
-    #     print(key, cell_id_center_coord_dict[key])
-    # with open("../region.pkl", 'rb') as file:
-    #     trj_region = pickle.loads(file.read())
-    # makeVocab(trj_region, h5_files)
-    # total_od_pairs = get_od_filter_by_day_and_hour(month, start_day, end_day, start_hour, end_hour, od_region)
-    # print(total_od_pairs[0:3])
-    # od_pairs, od_cell_set, od_pair_set, hot_od_gps_set = get_od_hot_cell(total_od_pairs, od_region, 1000, 0)
     data_id = 20
     out_adj_table = get_grid_split(data_id)
     trj_region = None

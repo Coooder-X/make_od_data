@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 from matplotlib import collections as mc
 
 from SpatialRegionTools import get_cell_id_center_coord_dict, gps2cell
+from global_param import project_path
 from spatial_grid_utils import get_region, decode_od
 
 
@@ -66,8 +67,8 @@ def draw_trj(to_draw_trips_dict, label_color_dict, type='trj'):
     ax.set_ylabel('lat')
 
     filename = 'trj_vis' if type == 'trj' else 'od_vis'
-    begin = 7 if type == 'od' else 1
-    plt.savefig(increase_filename(filename, 'png', begin, 'data'))
+    # begin = 7 if type == 'od' else 1
+    plt.savefig(increase_filename(filename, 'png', 1, 'data'))
     plt.close()
 
 
@@ -161,7 +162,7 @@ def vis_community(cluster_point_dict, selected_od_trj_dict):
 def increase_filename(name, filetype, begin=1, path='data'):
     i = begin
     while True:
-        filename = f"D:/PycharmProjects/make_od_data/{path}/{name}_{i}.{filetype}"
+        filename = f"{project_path}/{path}/{name}_{i}.{filetype}"
         if not os.path.exists(filename):
             return filename
         i += 1

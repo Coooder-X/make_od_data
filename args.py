@@ -1,5 +1,7 @@
+from global_param import project_path
+
 args = {}
-args['best_model'] = 'D:/PycharmProjects/make_od_data/best_model_4.pt'
+args['best_model'] = f'{project_path}/best_model_4.pt'
 args['best_cluster_model'] = 'best_cluster_model_4.pt'
 args['cluster_model'] = 'cluster_model_4.pt'
 args['pretrained_embedding'] = None

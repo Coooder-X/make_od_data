@@ -6,6 +6,7 @@ from matplotlib import collections as mc
 from tensorflow.python.util import deprecation
 
 from SpatialRegionTools import get_cell_id_center_coord_dict, gps2cell
+from global_param import project_path
 from visualization import randomcolor
 
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -240,7 +241,7 @@ def run(adj, features, cluster_num):
         for _ in range(power):
             features = norm_adj @ features
 
-        model_path = 'D:/PycharmProjects/make_od_data/gcc_W.pkl'  # f'{data_path}/{model_W_file_name}.pkl'
+        model_path = f'{project_path}/gcc_W.pkl'  # f'{data_path}/{model_W_file_name}.pkl'
         print('model_path', model_path, os.path.exists(model_path))
         if os.path.exists(model_path):
             G, F, W, losses = optimize(features, n_clusters, node_feat_dim,
