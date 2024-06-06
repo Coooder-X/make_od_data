@@ -31,6 +31,7 @@
 <img src=".\img\20240605212055.png" width="500"/>
 
 逻辑如下：
+
     - **运行我们的线图方法**：将 `use_line_graph` 置 true，其它不管
     - **运行传统方法**：首先将 `use_line_graph` 置 false，对于是否考虑边的权值，将`consider_edge_weight` 置为对应值。（注：某个传统方法依赖 igraph 库，使用不同的数据结构，因此需要将 `use_igraph`置 true，但我们的论文中没使用该传统方法，因此不管并置 false 即可。）
 
