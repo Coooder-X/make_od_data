@@ -24,22 +24,66 @@
 #### 运行实验：
 - 选择要跑的数据集，例如需要跑`/data/selected_od_trj_dict_20.pkl`这个数据，就在 `graph_exp.py`的 main 函数中配置 data_id = 20，如：
 <img src=".\img\20240605210842.png" width="700"/>
-- 配置执行实验的选项：在`graph_exp.py`中有3个 flag：
-<img src=".\img\20240605212055.png" width="500"/>
-逻辑如下：
-    - **运行我们的线图方法**：将 `use_line_graph` 置 true，其它不管
-    - **运行传统方法**：首先将 `use_line_graph` 置 false，对于是否考虑边的权值，将`consider_edge_weight` 置为对应值。（注：某个传统方法依赖 igraph 库，使用不同的数据结构，因此需要将 `use_igraph`置 true，但我们的论文中没使用该传统方法，因此不管并置 false 即可。）
+- 配置执行实验的选项：在`graph_exp.py`中有如下配置 flag：
+  ```python
+  consider_edge_weight = True  # 是否考虑边权（在使用传统方法时有效）
+  use_line_graph = False  # 是否使用线图方法
+  use_igraph = False  # 无用，并始终为 False
+  tradition_method = 'CNM'  # 'Louvain' 'CNM'
+  draw_cluster = False  # 若执行线图方法，则可以选择是否绘制社区划分结果的图片
+  ```
+  逻辑如下：
+  - **运行我们的线图方法**：将 `use_line_graph` 置 true，其它不管
+  - **运行传统方法**：首先将 `use_line_graph` 置 false，并使用`tradition_method`控制使用哪种传统方法。对于是否考虑边的权值，将`consider_edge_weight` 置为对应值。（注：某个传统方法依赖 igraph 库，使用不同的数据结构，因此需要将 `use_igraph`置 true，但我们的论文中没使用该传统方法，因此不管并置 false 即可。）
 
-本实验会将社区发现算法在数据集上执行3次，对应代码为`graph_exp.py`中的：
-<img src=".\img\20240605212922.png" width="500"/>
-其中 for 循环执行3次，即社区发现算法执行3次，cluster_num 仅在 `use_line_graph == True` 时才起作用，因为我们的线图方法需要指定社区个数，社区个数即对应`cluster_num`，做实验时可指定数组中元素的值。
-- 下图中的注释部分代码，运行的是 `networkx.algorithms.community.louvain_partitions` 这个传统方法，
-<img src=".\img\20240605213347.png" width="700"/>
-而下图中的代码运行的 `networkx.algorithms.community.greedy_modularity_communities` 是对应论文中的 GM 的传统方法。**需要执行哪个方法就将对应的代码片段取消注释，并注释掉另一个方法的代码。**
-<img src=".\img\20240605213620.png" width="700"/>
+  本实验会将社区发现算法在数据集上执行3次，对应代码为`graph_exp.py`中的：
+  ```python
+  for cluster_num in [4, 4, 5]:
+      code...
+  ```
+  其中 for 循环执行3次，即社区发现算法执行3次，cluster_num 仅在 `use_line_graph == True` 时才起作用，因为我们的线图方法需要指定社区个数，社区个数即对应`cluster_num`，做实验时可指定数组中元素的值。
+  - 下图中的代码，设置了`tradition_method == 'Louvain'`，运行的是 `networkx.algorithms.community.louvain_partitions` 这个传统方法，
+  ```python
+    if not use_line_graph:
+        # louvain --------------------------------------------------------------------
+        if tradition_method == 'Louvain':
+            communities = nx.algorithms.community.louvain_partitions(g, weight=weight, resolution=1.6, threshold=1e-06, seed=31)
+            trj_labels = []
+            for c in communities:
+                trj_labels.append(c)
+            print('trj==', trj_labels)
+            communities = trj_labels[0]
+            print('Louvain 社区发现结果为：', communities)
+            node_name_cluster_dict = {}
+            cluster_point_dict = {}
+            for (i, cluster) in enumerate(communities):
+                cluster_point_dict[i] = list(cluster)
+                for cluster_id in cluster:
+                    node_name_cluster_dict[cluster_id] = i
+  ```
+  而下图中的代码运行的 `networkx.algorithms.community.greedy_modularity_communities` 是对应论文中的 CNM 的传统方法。
+  ```python
+  # greedy_modularity_communities --------------------------------------------------------
+    if tradition_method == 'CNM':
+        communities = nx.algorithms.community.greedy_modularity_communities(g, weight=weight, resolution=1.0, cutoff=1.8, best_n=None)
+        trj_labels = []
+        for c in communities:
+            trj_labels.append(list(c))
+        print('trj==', trj_labels)
+        communities = trj_labels
+        print('CNM 社区发现结果为：', communities)
+        node_name_cluster_dict = {}
+        cluster_point_dict = {}
+        for (i, cluster) in enumerate(communities):
+            cluster_point_dict[i] = list(cluster)
+            for cluster_id in cluster:
+                node_name_cluster_dict[cluster_id] = i
+  ```
 #### 查看实验结果
-- 若是运行传统的方法，则仅有控制台输出，除去无用的 log 外，带有字样 **“社区发现结果为:xxxx”** 一行的输出即为社区发现结果，如：
-`greedy_modularity_communities社区发现结果为:  [[65, 84, 77, 58, 45, 47], [33, 18, 6, 26, 15], [72, 42, 70]]`
-其中 xxxx 部分是一个数组，数组长度是社区个数，数组元素是一个含有多个整数的数组，表示当前社区包含的网格 id。
+- 若是运行传统的方法，则包含控制台输出和 log 文件。
+  - 控制台输出中，除去无用的 log 外，带有字样 **“社区发现结果为:xxxx”** 一行的输出即为社区发现结果，如：
+  `CNM 社区发现结果为:  [[65, 84, 77, 58, 45, 47], [33, 18, 6, 26, 15], [72, 42, 70]]`
+  其中 xxxx 部分是一个数组，数组长度是社区个数，数组元素是一个含有多个整数的数组，表示当前社区包含的网格 id。
+  - log 文件：`result/exp_log.txt` 中记录了输出的 CON 指标。
 - 若运行我们的线图方法，则输出两张图片，位置在 `/data/our`目录下，命名分别是 `trj_vis_our_{index}.png` 和 `od_vis_our_{index}.png`，前者是 OD 对视角下的社区划分，后者是轨迹视角下的社区划分。在图片中，每条轨迹/OD对的终点由小三角形表示，起点由小圆点表示。
-- CON 指标输出：对于传统的和我们的方法，都会在控制台输出形如：`result ====> 社区个数：{cluster_num}, CON = {number}`的一行文字，其中 `CON =`后面的数即是 CON 指标。
+- CON 指标输出：对于传统的和我们的方法，都会在控制台输出形如：`result ====> 社区个数：{cluster_num}, CON = {number}`的一行文字，其中 `CON =`后面的数即是 CON 指标，同时也可在`result/exp_log.txt`文件中找到指标的输出。

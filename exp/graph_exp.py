@@ -21,8 +21,15 @@ from spatial_grid_utils import get_region, decode_od
 from t2vec import run_model2
 from visualization import vis_community
 
-exp3_log_name = 'exp5_log'
-exp3_log = []
+exp_log_name = 'exp_log'
+exp_log = []
+
+consider_edge_weight = True  # 是否考虑边权（在使用传统方法时有效）
+use_line_graph = False  # 是否使用线图方法
+use_igraph = False  # 无用，并始终为 False
+tradition_method = 'CNM'  # 'Louvain' 'CNM'
+draw_cluster = False  # 若执行线图方法，则可以选择是否绘制社区划分结果的图片
+
 
 def get_trj_feats(gps_trips, best_model):
     with open("../region.pkl", 'rb') as file:
@@ -47,7 +54,6 @@ def CON(G, cluster_id, node_name_cluster_dict):
     fm = fz + vol_C
     if fm == 0 or fz == 0:
         return -1
-    end = datetime.now()
     print(f'分子={fz}， 分母={fm}')
     res = fz / fm
     return res
@@ -78,7 +84,7 @@ def avg_CON(G, cluster_point_dict, node_name_cluster_dict, use_igraph):
         print(f'cluster: {cluster_id} cur_con = {cur_con}')
 
     avg /= ok_cluster_num
-    exp3_log.append(f'cluster_num {len(cluster_point_dict.keys())} avg Con = {avg}')
+    exp_log.append(f'cluster_num {len(cluster_point_dict.keys())} avg Con = {avg}')
     return avg
 
 
@@ -88,11 +94,6 @@ def get_ok_cluster_num(cluster_point_dict):
         if len(cluster_point_dict[cluster_id]) > 5:
             ok_cluster_num += 1
     return ok_cluster_num
-
-
-consider_edge_weight = True
-use_line_graph = False
-use_igraph = False
 
 
 def get_origin_graph_by_selected_cluster(out_adj_dict, data_id):
@@ -124,8 +125,6 @@ def get_origin_graph_by_selected_cluster(out_adj_dict, data_id):
         selected_od_trj_dict = pickle.loads(file.read())
     for key in selected_od_trj_dict:
         o, d = decode_od(key)
-        if key == '55_66' or key == '66_55' or key == '53_35':
-            continue
         od_flow_dict[(o, d)] = len(selected_od_trj_dict[key])
 
     g = Graph()
@@ -152,9 +151,6 @@ def get_grid_split(data_id):
         od_list = json.load(json_g)
     # od_list = [[od_pair['start'], od_pair['end'], ] for od_pair in od_list]
     for od_pair in od_list:
-        if [od_pair['start'], od_pair['end']] == [55, 65] or [od_pair['start'], od_pair['end']] == [65, 55] \
-                or [od_pair['start'], od_pair['end']] == [53, 35]:
-            continue
         if od_pair['start'] not in out_adj_table:
             out_adj_table[od_pair['start']] = set()
         out_adj_table[od_pair['start']].add(od_pair['end'])
@@ -193,6 +189,9 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
         else:
             g = g.G
 
+    # print('边 ', lg.edges())
+    # print('点 ', lg.nodes())
+
     node_names_trjFeats_dict = {}   # 节点名 -> 包含的轨迹特征数组的 map
     if use_line_graph:
         if os.path.isfile(args['best_model']):
@@ -215,95 +214,21 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
     # print(f'原图节点个数：{len(g.nodes())}')
     # print('向量长度', len(features[0]))
 
-    is_none_graph_baseline = False
-    is_none_feat_baseline = False
-
     ######## 仅在做实验时需要这个 for 循环，否则不需要循环，执行一次即可\
     cluster_point_dict = {}
     # for cluster_num in [10, 20, 30, 40, 50]:
     for cluster_num in [4, 4, 5]:
-        if is_none_graph_baseline:
-            pass
-        else:
-            weight = 'edge_feature' if consider_edge_weight is True else None
-            if not use_line_graph:
-                # louvain 算法 --------------------------------------------------------------------
-                # communities = nx.algorithms.community.louvain_partitions(g, weight=weight, resolution=1.6, threshold=1e-06, seed=31)
-                # print('=====> communities1=', communities)
-                # trj_labels = []
-                # for c in communities:
-                #     print('c ===', c)
-                #     trj_labels.append(c)
-                # print('trj==', trj_labels)
-                # communities = trj_labels[0]
-                # print('louvain 社区发现结果为: ', communities)
-                # node_name_cluster_dict = {}
-                # cluster_point_dict = {}
-                # for (i, cluster) in enumerate(communities):
-                #     cluster_point_dict[i] = list(cluster)
-                #     for cluster_id in cluster:
-                #         node_name_cluster_dict[cluster_id] = i
-
-                # em 算法 --------------------------------------------------------------------------
-                # communities = algorithms.em(g, cluster_num)
-                # communities = algorithms.async_fluid(g, cluster_num)
-                # g_tmp = ig.Graph(directed=True)
-                # g_tmp.add_vertices(list(g.nodes))
-                # g_tmp.add_edges(list(g.edges))
-                # g = g_tmp
-                # communities = g.community_edge_betweenness(clusters=cluster_num, directed=True, weights=None)
-                # print('=====> communities1=', communities)
-                # trj_labels = communities
-                # communities = list(communities.communities)
-                # node_name_cluster_dict = {}
-                # cluster_point_dict = {}
-                # for (i, cluster) in enumerate(communities):
-                #     cluster_point_dict[i] = list(cluster)
-                #     for cluster_id in cluster:
-                #         node_name_cluster_dict[cluster_id] = i
-
-                # community_edge_betweenness 算法(igraph)  ------------------------------------------------------
-                # com = g.community_edge_betweenness(clusters=cluster_num, directed=True, weights=None)
-                # # com = g.community_leading_eigenvector(clusters=cluster_num, arpack_options=None, weights=None)
-                # # print('com is ==============>', com)
-                # # com = ig.GraphBase.community_edge_betweenness(g, 3, True)
-                # print('com ===========>', com.as_clustering())
-                # print('com ===========>', com)
-                # communities = com.as_clustering()
-                # trj_labels = communities
-                # # communities = list(communities.communities)
-                # node_name_cluster_dict = {}
-                # cluster_point_dict = {}
-                # for (i, cluster) in enumerate(communities):
-                #     cluster_point_dict[i] = list(cluster)
-                #     for cluster_id in cluster:
-                #         node_name_cluster_dict[cluster_id] = i
-
-                # asyn_lpa_communities 算法 --------------------------------------------------------
-                # communities = nx.algorithms.community.asyn_lpa_communities(g, weight=weight, seed=None)
-                # print('=====> communities1=', communities)
-                # trj_labels = []
-                # for c in communities:
-                #     trj_labels.append(c)
-                # print('trj==', trj_labels)
-                # communities = trj_labels
-                # print('=====> communities2=', communities)
-                # node_name_cluster_dict = {}
-                # cluster_point_dict = {}
-                # for (i, cluster) in enumerate(communities):
-                #     cluster_point_dict[i] = list(cluster)
-                #     for cluster_id in cluster:
-                #         node_name_cluster_dict[cluster_id] = i
-
-                # greedy_modularity_communities 算法 --------------------------------------------------------
-                communities = nx.algorithms.community.greedy_modularity_communities(g, weight=weight, resolution=1.0, cutoff=1.8, best_n=None)
-                print('=====> communities1=', communities)
+        weight = 'edge_feature' if consider_edge_weight is True else None
+        if not use_line_graph:
+            # louvain --------------------------------------------------------------------
+            if tradition_method == 'Louvain':
+                communities = nx.algorithms.community.louvain_partitions(g, weight=weight, resolution=1.6, threshold=1e-06, seed=31)
                 trj_labels = []
                 for c in communities:
-                    trj_labels.append(list(c))
+                    trj_labels.append(c)
                 print('trj==', trj_labels)
-                communities = trj_labels
-                print('greedy_modularity_communities社区发现结果为: ', communities)
+                communities = trj_labels[0]
+                print('Louvain 社区发现结果为：', communities)
                 node_name_cluster_dict = {}
                 cluster_point_dict = {}
                 for (i, cluster) in enumerate(communities):
@@ -311,41 +236,107 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
                     for cluster_id in cluster:
                         node_name_cluster_dict[cluster_id] = i
 
-            # 本文方法 ----------------------------------------------------------------------
-            if use_line_graph:
-                trj_labels = run(adj_mat, features, cluster_num)  # 得到社区划分结果，索引对应 features 的索引顺序，值是社区 id
-                trj_labels = trj_labels.numpy().tolist()
+            # em --------------------------------------------------------------------------
+            # if tradition_method == 'em':
+            #     communities = algorithms.em(g, cluster_num)
+            #     communities = algorithms.async_fluid(g, cluster_num)
+            #     g_tmp = ig.Graph(directed=True)
+            #     g_tmp.add_vertices(list(g.nodes))
+            #     g_tmp.add_edges(list(g.edges))
+            #     g = g_tmp
+            #     communities = g.community_edge_betweenness(clusters=cluster_num, directed=True, weights=None)
+            #     print('=====> communities1=', communities)
+            #     trj_labels = communities
+            #     communities = list(communities.communities)
+            #     node_name_cluster_dict = {}
+            #     cluster_point_dict = {}
+            #     for (i, cluster) in enumerate(communities):
+            #         cluster_point_dict[i] = list(cluster)
+            #         for cluster_id in cluster:
+            #             node_name_cluster_dict[cluster_id] = i
+
+            # community_edge_betweenness (igraph)  ------------------------------------------------------
+            # if tradition_method == 'community_edge_betweenness':
+            #     com = g.community_edge_betweenness(clusters=cluster_num, directed=True, weights=None)
+            #     # com = g.community_leading_eigenvector(clusters=cluster_num, arpack_options=None, weights=None)
+            #     # print('com is ==============>', com)
+            #     # com = ig.GraphBase.community_edge_betweenness(g, 3, True)
+            #     print('com ===========>', com.as_clustering())
+            #     print('com ===========>', com)
+            #     communities = com.as_clustering()
+            #     trj_labels = communities
+            #     # communities = list(communities.communities)
+            #     node_name_cluster_dict = {}
+            #     cluster_point_dict = {}
+            #     for (i, cluster) in enumerate(communities):
+            #         cluster_point_dict[i] = list(cluster)
+            #         for cluster_id in cluster:
+            #             node_name_cluster_dict[cluster_id] = i
+
+            # asyn_lpa_communities --------------------------------------------------------
+            # if tradition_method == 'asyn_lpa_communities':
+            #     communities = nx.algorithms.community.asyn_lpa_communities(g, weight=weight, seed=None)
+            #     print('=====> communities1=', communities)
+            #     trj_labels = []
+            #     for c in communities:
+            #         trj_labels.append(c)
+            #     print('trj==', trj_labels)
+            #     communities = trj_labels
+            #     print('=====> communities2=', communities)
+            #     node_name_cluster_dict = {}
+            #     cluster_point_dict = {}
+            #     for (i, cluster) in enumerate(communities):
+            #         cluster_point_dict[i] = list(cluster)
+            #         for cluster_id in cluster:
+            #             node_name_cluster_dict[cluster_id] = i
+
+            # greedy_modularity_communities --------------------------------------------------------
+            if tradition_method == 'CNM':
+                communities = nx.algorithms.community.greedy_modularity_communities(g, weight=weight, resolution=1.0, cutoff=1.8, best_n=None)
+                trj_labels = []
+                for c in communities:
+                    trj_labels.append(list(c))
+                print('trj==', trj_labels)
+                communities = trj_labels
+                print('CNM 社区发现结果为：', communities)
                 node_name_cluster_dict = {}
-                for i in range(len(trj_labels)):
-                    label = trj_labels[i]
-                    if label not in cluster_point_dict:
-                        cluster_point_dict[label] = []
-                    # 在线图中度为 0 的散点，视为噪声，从社区中排除
-                    # if get_degree_by_node_name(lg, related_node_names[i]) > 0:
-                    cluster_point_dict[label].append(related_node_names[i])
-                    node_name_cluster_dict[related_node_names[i]] = label
-                print('实际有效社区个数: ', len(cluster_point_dict.keys()))
-                exp3_log.append(f'实际有效社区个数: {get_ok_cluster_num(cluster_point_dict)}')
-                print('cluster_point_dict', cluster_point_dict)
+                cluster_point_dict = {}
+                for (i, cluster) in enumerate(communities):
+                    cluster_point_dict[i] = list(cluster)
+                    for cluster_id in cluster:
+                        node_name_cluster_dict[cluster_id] = i
+
+        # 本文方法 ----------------------------------------------------------------------
+        if use_line_graph:
+            trj_labels = run(adj_mat, features, cluster_num)  # 得到社区划分结果，索引对应 features 的索引顺序，值是社区 id
+            trj_labels = trj_labels.numpy().tolist()
+            node_name_cluster_dict = {}
+            for i in range(len(trj_labels)):
+                label = trj_labels[i]
+                if label not in cluster_point_dict:
+                    cluster_point_dict[label] = []
+                # 在线图中度为 0 的散点，视为噪声，从社区中排除
+                # if get_degree_by_node_name(lg, related_node_names[i]) > 0:
+                cluster_point_dict[label].append(related_node_names[i])
+                node_name_cluster_dict[related_node_names[i]] = label
+            print('实际有效社区个数: ', len(cluster_point_dict.keys()))
+            exp_log.append(f'实际有效社区个数: {get_ok_cluster_num(cluster_point_dict)}')
+            print('cluster_point_dict', cluster_point_dict)
+            if draw_cluster:
                 vis_community(cluster_point_dict, selected_od_trj_dict)
 
-        print(f'result ====> 社区个数：{cluster_num}, CON = {avg_CON(g, cluster_point_dict, node_name_cluster_dict, use_igraph)}')
+        print(f'====> 社区个数：{cluster_num}, CON = {avg_CON(g, cluster_point_dict, node_name_cluster_dict, use_igraph)}')
 
-    if is_none_graph_baseline:
-        file_name = f'../result/{exp3_log_name}_none_graph_baseline_Q.txt'
-    elif is_none_feat_baseline:
-        file_name = f'../result/{exp3_log_name}_none_feat_baseline_Q.txt'
-    else:
-        file_name = f'../result/{exp3_log_name}_our_Q.txt'
+    file_name = f'../result/{exp_log_name}.txt'
     f = open(file_name, 'w')
-    for log in exp3_log:
+    for log in exp_log:
         f.write(log + '\n')
     f.close()
 
 
 if __name__ == '__main__':
     od_region = get_region()
-    data_id = 20
+    data_id = 20  # 读取的.pkl文件的id
     out_adj_table = get_grid_split(data_id)
     trj_region = None
     get_line_graph(od_region, trj_region, out_adj_table, data_id)
