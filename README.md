@@ -23,7 +23,9 @@
 - `graph_exp.py` 为运行实验的主程序。
 #### 运行实验：
 - 选择要跑的数据集，例如需要跑`/data/selected_od_trj_dict_20.pkl`这个数据，就在 `graph_exp.py`的 main 函数中配置 data_id = 20，如：
+  
 <img src=".\img\20240605210842.png" width="700"/>
+
 - 配置执行实验的选项：在`graph_exp.py`中有如下配置 flag：
   ```python
   consider_edge_weight = True  # 是否考虑边权（在使用传统方法时有效）
@@ -79,6 +81,7 @@
             for cluster_id in cluster:
                 node_name_cluster_dict[cluster_id] = i
   ```
+
 #### 查看实验结果
 - 若是运行传统的方法，则包含控制台输出和 log 文件。
   - 控制台输出中，除去无用的 log 外，带有字样 **“社区发现结果为:xxxx”** 一行的输出即为社区发现结果，如：
