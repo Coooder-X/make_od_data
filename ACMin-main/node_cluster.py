@@ -14,7 +14,7 @@ from sklearn import metrics
 import numpy as np
 import argparse
 import os
-import cPickle as pickle
+import pickle
 import networkx as nx
 from scipy.sparse.linalg import svds
 import scipy.sparse as sp
@@ -29,8 +29,8 @@ from sklearn.cluster import AffinityPropagation
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import SpectralClustering
 from spectral import discretize
-from scipy.sparse.linalg.eigen.arpack import eigsh as largest_eigsh
-from scipy.sparse.linalg.eigen.arpack import eigs as largest_eigs
+# from scipy.sparse.linalg.eigen.arpack import eigsh as largest_eigsh
+# from scipy.sparse.linalg.eigen.arpack import eigs as largest_eigs
 from scipy.linalg import qr
 from scipy.linalg import orth
 from scipy.sparse.csgraph import laplacian
@@ -165,9 +165,12 @@ def load_data(args):
     label_file = folder + args.data + '/labels.txt'
 
     print("loading from " + feature_file)
-    features = pickle.load(open(feature_file))
+    with open(feature_file, 'rb') as file:
+        features = pickle.load(file, encoding='latin1')
+    # features = pickle.load(open(feature_file))
 
     print("nnz:", features.getnnz())
+    print('features', features)
     print(features.shape)
     n = features.shape[0]
     print("loading from " + edge_file)
@@ -177,6 +180,7 @@ def load_data(args):
 
     print("loading from " + label_file)
     true_clusters = read_cluster(n, label_file)
+    print('graph', graph)
     return graph, features, true_clusters
 
 
@@ -316,10 +320,12 @@ def cluster(graph, X, num_cluster, true_clusters, alpha=0.2, beta=0.35, t=5, tma
     for i in range(t - 1):
         M = (1 - alpha) * P.dot(M) + PC
 
-    class_evdsum = M.sum(axis=0).flatten().tolist()[0]
+    class_evdsum = M.sum(axis=0).flatten().tolist()#[0]
+    print("class_evdsum:", class_evdsum)
+    print("num_cluster:", num_cluster)
     newcandidates = np.argpartition(class_evdsum, -num_cluster)[-num_cluster:]
     M = M[:, newcandidates]
-    labels = np.argmax(M, axis=1).flatten().tolist()[0]
+    labels = np.argmax(M, axis=1).flatten().tolist()#[0]
     labels = np.asarray(labels, dtype=np.int)
 
     # random initialization
@@ -408,8 +414,8 @@ def cluster(graph, X, num_cluster, true_clusters, alpha=0.2, beta=0.35, t=5, tma
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process...')
-    parser.add_argument('--data', type=str, help='graph dataset name')
-    parser.add_argument('--k', type=int, default=0, help='the number of clusters')
+    parser.add_argument('--data', type=str, help='graph dataset name', default='cora')
+    parser.add_argument('--k', type=int, default=3, help='the number of clusters')
     args = parser.parse_args()
 
     print("loading data ", args.data)
@@ -436,6 +442,7 @@ if __name__ == '__main__':
 
     print("-------------------------------")
     K = len(set(predict_clusters))
+    print('predict_clusters', predict_clusters)
     with open("sc." + args.data + "." + str(K) + ".cluster.txt", "w") as fout:
         for i in range(len(predict_clusters)):
             fout.write(str(predict_clusters[i]) + "\n")
