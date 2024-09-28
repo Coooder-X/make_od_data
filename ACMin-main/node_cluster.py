@@ -162,7 +162,8 @@ def load_data(args):
     folder = "./data/"
     edge_file = folder + args.data + "/edgelist.txt"
     feature_file = folder + args.data + "/attrs.pkl"
-    label_file = folder + args.data + '/labels.txt'
+    if args.use_label:
+        label_file = folder + args.data + '/labels.txt'
 
     print("loading from " + feature_file)
     with open(feature_file, 'rb') as file:
@@ -178,9 +179,13 @@ def load_data(args):
     for v in range(n):
         graph.add_node(v)
 
-    print("loading from " + label_file)
-    true_clusters = read_cluster(n, label_file)
+    if args.use_label:
+        print("loading from " + label_file)
+        true_clusters = read_cluster(n, label_file)
+    else:
+        true_clusters = None
     print('graph', graph)
+    # used_points =
     return graph, features, true_clusters
 
 
@@ -414,8 +419,9 @@ def cluster(graph, X, num_cluster, true_clusters, alpha=0.2, beta=0.35, t=5, tma
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process...')
-    parser.add_argument('--data', type=str, help='graph dataset name', default='cora')
+    parser.add_argument('--data', type=str, help='graph dataset name', default='our')
     parser.add_argument('--k', type=int, default=3, help='the number of clusters')
+    parser.add_argument('--use_label', type=bool, default=False, help='是否有真值')
     args = parser.parse_args()
 
     print("loading data ", args.data)
