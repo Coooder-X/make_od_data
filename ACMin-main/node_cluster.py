@@ -28,6 +28,8 @@ import heapq
 from sklearn.cluster import AffinityPropagation
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import SpectralClustering
+
+from exp.graph_exp import get_origin_graph_by_selected_cluster, avg_CON
 from spectral import discretize
 # from scipy.sparse.linalg.eigen.arpack import eigsh as largest_eigsh
 # from scipy.sparse.linalg.eigen.arpack import eigs as largest_eigs
@@ -43,7 +45,7 @@ import operator
 import random
 
 print(sklearn.__version__)
-
+data_id = 20
 
 def read_cluster(N, file_name):
     if not file_name or not os.path.exists(file_name):
@@ -158,6 +160,32 @@ class clustering_metrics():
         return acc, nmi, adjscore
 
 
+def build_my_graph(cluster_res_dict):
+    folder = "./data/"
+    edge_file = folder + args.data + "/edgelist.txt"
+    out_adj_dict = {}
+    with open(edge_file, 'r', encoding='utf-8') as file:
+        lines = file.readlines()
+        for line in lines:
+            tmp = line.strip().split()
+            st, ed = int(tmp[0]), int(tmp[1])
+            if st not in out_adj_dict:
+                out_adj_dict[st] = [ed]
+            else:
+                out_adj_dict[st].append(ed)
+    cluster_point_dict = {}
+    for point in cluster_res_dict:
+        cluster = cluster_res_dict[point]
+        if cluster not in cluster_point_dict:
+            cluster_point_dict[cluster] = [point]
+        else:
+            cluster_point_dict[cluster].append(point)
+    g, out_adj_dict = get_origin_graph_by_selected_cluster(out_adj_dict, data_id)
+    con = avg_CON(g.G, cluster_point_dict, cluster_res_dict, False)
+    print('CON =', con)
+
+
+
 def load_data(args):
     folder = "./data/"
     edge_file = folder + args.data + "/edgelist.txt"
@@ -185,8 +213,15 @@ def load_data(args):
     else:
         true_clusters = None
     print('graph', graph)
-    # used_points =
-    return graph, features, true_clusters
+    used_points = set()
+    with open(edge_file, 'r', encoding='utf-8') as file:
+        for line in file:
+            tmp = line.strip().split()
+            used_points.add(int(tmp[0]))
+            used_points.add(int(tmp[1]))
+    used_points = list(used_points)
+    print('used_points', used_points)
+    return graph, features, true_clusters, used_points
 
 
 def si_eig(P, X, alpha, beta, k, a):
@@ -308,7 +343,7 @@ def get_ac(P, X, XT, y, alpha, beta, t):
     return conductance_cur / num_cluster
 
 
-def cluster(graph, X, num_cluster, true_clusters, alpha=0.2, beta=0.35, t=5, tmax=200, ri=False):
+def cluster(graph, used_points, X, num_cluster, true_clusters, alpha=0.2, beta=0.35, t=15, tmax=200, ri=False):
     print("attributed transition matrix constrcution...")
     adj = nx.adjacency_matrix(graph)
     P = preprocessing.normalize(adj, norm='l1', axis=1)
@@ -411,10 +446,20 @@ def cluster(graph, X, num_cluster, true_clusters, alpha=0.2, beta=0.35, t=5, tma
 
     time_elapsed = time.time() - start_time
     print("%f seconds are taken to train" % time_elapsed)
-    print(np.unique(predict_clusters_best))
+    print('unique clusters', np.unique(predict_clusters_best))
+    print('full clusters', predict_clusters_best)
     print("best iter: %d, best condutance: %f, acc: %f, %f, %f" % (
     iter_best, conductance_best, conductance_best_acc[0], conductance_best_acc[1], conductance_best_acc[2]))
-    return predict_clusters_best
+    node_list = list(dict(graph.adj).keys())
+    res_dict = {}
+    for i in range(14):
+        res_dict[node_list[i]] = predict_clusters_best[i]
+    print('res_dictm', res_dict)
+    predict_clusters_res = []
+    for i in range(len(predict_clusters_best)):
+        if i in used_points:
+            predict_clusters_res.append(predict_clusters_best[i])
+    return predict_clusters_best, res_dict
 
 
 if __name__ == '__main__':
@@ -425,7 +470,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print("loading data ", args.data)
-    graph, feats, true_clusters = load_data(args)
+    graph, feats, true_clusters, used_points = load_data(args)
 
     n = feats.shape[0]
     if args.k > 0:
@@ -440,7 +485,7 @@ if __name__ == '__main__':
     t = 5
     tmax = 200
 
-    predict_clusters = cluster(graph, feats, num_cluster, true_clusters, alpha, beta, t, tmax, False)
+    predict_clusters, res_dict = cluster(graph, used_points, feats, num_cluster, true_clusters, alpha, beta, t, tmax, False)
 
     if args.k <= 0:
         cm = clustering_metrics(true_clusters, predict_clusters)
@@ -449,6 +494,8 @@ if __name__ == '__main__':
     print("-------------------------------")
     K = len(set(predict_clusters))
     print('predict_clusters', predict_clusters)
+    print('res_dict', res_dict)
+    build_my_graph(res_dict)
     with open("sc." + args.data + "." + str(K) + ".cluster.txt", "w") as fout:
         for i in range(len(predict_clusters)):
             fout.write(str(predict_clusters[i]) + "\n")
