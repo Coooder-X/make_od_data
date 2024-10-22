@@ -183,6 +183,7 @@ def build_my_graph(cluster_res_dict):
     g, out_adj_dict = get_origin_graph_by_selected_cluster(out_adj_dict, data_id)
     con = avg_CON(g.G, cluster_point_dict, cluster_res_dict, False)
     print('CON =', con)
+    print('cluster_point_dict', cluster_point_dict)
 
 
 
@@ -465,7 +466,7 @@ def cluster(graph, used_points, X, num_cluster, true_clusters, alpha=0.2, beta=0
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process...')
     parser.add_argument('--data', type=str, help='graph dataset name', default='our')
-    parser.add_argument('--k', type=int, default=3, help='the number of clusters')
+    parser.add_argument('--k', type=int, default=4, help='the number of clusters')
     parser.add_argument('--use_label', type=bool, default=False, help='是否有真值')
     args = parser.parse_args()
 
@@ -480,9 +481,9 @@ if __name__ == '__main__':
 
     print("k=", num_cluster)
 
-    alpha = 0.2
-    beta = 0.35
-    t = 5
+    alpha = 0.25
+    beta = 0.2
+    t = 15
     tmax = 200
 
     predict_clusters, res_dict = cluster(graph, used_points, feats, num_cluster, true_clusters, alpha, beta, t, tmax, False)
