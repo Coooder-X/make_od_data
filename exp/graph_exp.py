@@ -20,6 +20,7 @@ from od_graph_process import get_line_graph_by_selected_cluster
 from spatial_grid_utils import get_region, decode_od
 from t2vec import run_model2
 from visualization import vis_community
+from model.magi import run_magi
 
 exp_log_name = 'exp_log'
 exp_log = []
@@ -28,6 +29,7 @@ consider_edge_weight = True  # 是否考虑边权（在使用传统方法时有�
 use_line_graph = False  # 是否使用线图方法
 use_igraph = False  # 无用，并始终为 False
 tradition_method = 'CNM'  # 'Louvain' 'CNM'
+use_magi = True  # 是否使用MAGI方法（2024年新方法）
 draw_cluster = False  # 若执行线图方法，则可以选择是否绘制社区划分结果的图片
 
 
@@ -306,8 +308,50 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
                     for cluster_id in cluster:
                         node_name_cluster_dict[cluster_id] = i
 
-        # 本文方法 ----------------------------------------------------------------------
-        if use_line_graph:
+        # MAGI方法 (2024年新方法) -------------------------------------------------------
+        if use_magi:
+            if use_line_graph:
+                # 使用线图的特征和邻接矩阵
+                trj_labels = run_magi(adj_mat, features, cluster_num)
+                node_name_cluster_dict = {}
+                cluster_point_dict = {}
+                for i in range(len(trj_labels)):
+                    label = int(trj_labels[i])
+                    if label not in cluster_point_dict:
+                        cluster_point_dict[label] = []
+                    cluster_point_dict[label].append(related_node_names[i])
+                    node_name_cluster_dict[related_node_names[i]] = label
+                print('MAGI 社区发现结果: ', cluster_point_dict)
+                print('实际有效社区个数: ', len(cluster_point_dict.keys()))
+                exp_log.append(f'MAGI实际有效社区个数: {get_ok_cluster_num(cluster_point_dict)}')
+                if draw_cluster:
+                    vis_community(cluster_point_dict, selected_od_trj_dict)
+            else:
+                # 使用原图进行MAGI聚类
+                adj_mat = nx.adjacency_matrix(g)
+                # 创建简单的节点特征（度特征 + 随机特征）
+                degrees = dict(g.degree())
+                node_list = list(g.nodes())
+                features = []
+                for node in node_list:
+                    # 使用度作为基础特征，添加一些随机特征
+                    feat = [degrees[node]] + [np.random.random() for _ in range(9)]  # 10维特征
+                    features.append(feat)
+                features = np.array(features)
+                
+                trj_labels = run_magi(adj_mat, features, cluster_num)
+                node_name_cluster_dict = {}
+                cluster_point_dict = {}
+                for i, node in enumerate(node_list):
+                    label = int(trj_labels[i])
+                    if label not in cluster_point_dict:
+                        cluster_point_dict[label] = []
+                    cluster_point_dict[label].append(node)
+                    node_name_cluster_dict[node] = label
+                print('MAGI 社区发现结果: ', cluster_point_dict)
+                
+        # 原有的GCC方法 ----------------------------------------------------------------------
+        elif use_line_graph:
             trj_labels = run(adj_mat, features, cluster_num)  # 得到社区划分结果，索引对应 features 的索引顺序，值是社区 id
             trj_labels = trj_labels.numpy().tolist()
             node_name_cluster_dict = {}
@@ -319,8 +363,8 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
                 # if get_degree_by_node_name(lg, related_node_names[i]) > 0:
                 cluster_point_dict[label].append(related_node_names[i])
                 node_name_cluster_dict[related_node_names[i]] = label
-            print('实际有效社区个数: ', len(cluster_point_dict.keys()))
-            exp_log.append(f'实际有效社区个数: {get_ok_cluster_num(cluster_point_dict)}')
+            print('GCC实际有效社区个数: ', len(cluster_point_dict.keys()))
+            exp_log.append(f'GCC实际有效社区个数: {get_ok_cluster_num(cluster_point_dict)}')
             print('cluster_point_dict', cluster_point_dict)
             if draw_cluster:
                 vis_community(cluster_point_dict, selected_od_trj_dict)

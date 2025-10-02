@@ -154,3 +154,4 @@ backend/home/zhengxuan.lin/project/tmp/
 *.pt
 result/exp_log.txt
 result/exp5_log_our_Q.txt
+*.pdf

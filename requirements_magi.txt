@@ -1,0 +1,9 @@
+# MAGI方法所需的额外依赖
+torch>=1.7.0
+torch-geometric>=2.0.0
+scikit-learn>=0.24.0
+scipy>=1.6.0
+numpy>=1.19.0
+
+# 如果需要GPU支持，请根据你的CUDA版本安装对应的torch版本
+# 例如：torch==1.12.1+cu113 -f https://download.pytorch.org/whl/torch_stable.html
