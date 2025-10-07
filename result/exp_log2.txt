@@ -1,0 +1,3 @@
+cluster_num 3 avg Con = 0.12103174603174603
+cluster_num 3 avg Con = 0.12103174603174603
+cluster_num 3 avg Con = 0.12103174603174603

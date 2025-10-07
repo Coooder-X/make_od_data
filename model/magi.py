@@ -161,7 +161,8 @@ def scipy_sparse_to_torch(sparse_mx):
     return torch.sparse.FloatTensor(indices, values, shape)
 
 
-def run_magi(adj_matrix, features, num_clusters, device='cpu', epochs=200, lr=0.001):
+def run_magi(adj_matrix, features, num_clusters, device='cpu', epochs=200, lr=0.001, 
+             modularity_weight=0.5, contrastive_weight=0.3):
     """
     Run MAGI clustering algorithm
     
@@ -198,12 +199,22 @@ def run_magi(adj_matrix, features, num_clusters, device='cpu', epochs=200, lr=0.
     model = MAGI(input_dim=input_dim, num_clusters=num_clusters).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     
-    # Initialize cluster centers with k-means
+    # Initialize cluster centers with k-means (多次尝试获得更好的初始化)
     with torch.no_grad():
         z, _ = model(features, edge_index)
-        kmeans = KMeans(n_clusters=num_clusters, random_state=42)
-        y_pred = kmeans.fit_predict(z.cpu().numpy())
-        model.cluster_layer.data = torch.tensor(kmeans.cluster_centers_).to(device)
+        best_inertia = float('inf')
+        best_centers = None
+        
+        # 尝试多次k-means初始化，选择最好的
+        for i in range(10):
+            kmeans = KMeans(n_clusters=num_clusters, random_state=42+i, n_init=10)
+            y_pred = kmeans.fit_predict(z.cpu().numpy())
+            if kmeans.inertia_ < best_inertia:
+                best_inertia = kmeans.inertia_
+                best_centers = kmeans.cluster_centers_
+        
+        model.cluster_layer.data = torch.tensor(best_centers).to(device)
+        print(f"最佳初始化惯性: {best_inertia:.4f}")
     
     # Training loop
     model.train()
@@ -221,18 +232,25 @@ def run_magi(adj_matrix, features, num_clusters, device='cpu', epochs=200, lr=0.
         modularity_loss = model.modularity_loss(z, adj_tensor, q)
         contrastive_loss = model.contrastive_loss(z, adj_tensor)
         
-        # Total loss
-        total_loss = kl_loss + 0.1 * modularity_loss + 0.1 * contrastive_loss
+        # Total loss - 使用可调整的权重
+        total_loss = kl_loss + modularity_weight * modularity_loss + contrastive_weight * contrastive_loss
         
         # Backward pass
         total_loss.backward()
         optimizer.step()
         
         if epoch % 50 == 0:
+            # 检查当前聚类质量
+            with torch.no_grad():
+                _, q_check = model(features, edge_index, adj_tensor)
+                current_labels = torch.argmax(q_check, dim=1).cpu().numpy()
+                unique_clusters = len(set(current_labels))
+            
             print(f'Epoch {epoch}: Loss = {total_loss.item():.4f}, '
                   f'KL = {kl_loss.item():.4f}, '
                   f'Modularity = {modularity_loss.item():.4f}, '
-                  f'Contrastive = {contrastive_loss.item():.4f}')
+                  f'Contrastive = {contrastive_loss.item():.4f}, '
+                  f'Clusters = {unique_clusters}/{num_clusters}')
     
     # Get final cluster assignments
     model.eval()

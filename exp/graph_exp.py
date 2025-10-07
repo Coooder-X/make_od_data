@@ -26,11 +26,11 @@ exp_log_name = 'exp_log'
 exp_log = []
 
 consider_edge_weight = True  # 是否考虑边权（在使用传统方法时有效）
-use_line_graph = False  # 是否使用线图方法
+use_line_graph = True  # 是否使用线图方法
 use_igraph = False  # 无用，并始终为 False
 tradition_method = 'CNM'  # 'Louvain' 'CNM'
 use_magi = True  # 是否使用MAGI方法（2024年新方法）
-draw_cluster = False  # 若执行线图方法，则可以选择是否绘制社区划分结果的图片
+draw_cluster = True  # 若执行线图方法，则可以选择是否绘制社区划分结果的图片
 
 
 def get_trj_feats(gps_trips, best_model):
@@ -85,6 +85,9 @@ def avg_CON(G, cluster_point_dict, node_name_cluster_dict, use_igraph):
         avg += cur_con
         print(f'cluster: {cluster_id} cur_con = {cur_con}')
 
+    if ok_cluster_num == 0:
+        exp_log.append(f'cluster_num {len(cluster_point_dict.keys())} avg Con：有效的社区个数为0，无法计算 CON')
+        return '有效的社区个数为0，无法计算 CON'
     avg /= ok_cluster_num
     exp_log.append(f'cluster_num {len(cluster_point_dict.keys())} avg Con = {avg}')
     return avg
@@ -198,7 +201,7 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
     if use_line_graph:
         if os.path.isfile(args['best_model']):
             print("=> loading best_model '{}'".format(args['best_model']))
-            best_model = torch.load(args['best_model'], map_location='cpu')
+            best_model = torch.load(args['best_model'], map_location='cpu', weights_only=False)
         with open(f"../data/selected_od_trj_dict_{data_id}.pkl", 'rb') as file:
             selected_od_trj_dict = pickle.loads(file.read())
         for od_pair in selected_od_trj_dict.keys():
@@ -311,8 +314,12 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
         # MAGI方法 (2024年新方法) -------------------------------------------------------
         if use_magi:
             if use_line_graph:
-                # 使用线图的特征和邻接矩阵
-                trj_labels = run_magi(adj_mat, features, cluster_num)
+                # 使用线图的特征和邻接矩阵，参考GCC成功经验调参
+                trj_labels = run_magi(adj_mat, features, cluster_num, 
+                                    epochs=2000,           # 更多训练轮数
+                                    lr=0.000001,          # 更小学习率
+                                    modularity_weight=5.0, # 极强调模块度
+                                    contrastive_weight=2.0) # 强调对比学习
                 node_name_cluster_dict = {}
                 cluster_point_dict = {}
                 for i in range(len(trj_labels)):
@@ -339,7 +346,10 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
                     features.append(feat)
                 features = np.array(features)
                 
-                trj_labels = run_magi(adj_mat, features, cluster_num)
+                # 调整参数以获得更好的聚类效果
+                trj_labels = run_magi(adj_mat, features, cluster_num,
+                                    epochs=500,      # 增加训练轮数
+                                    lr=0.0001)       # 降低学习率
                 node_name_cluster_dict = {}
                 cluster_point_dict = {}
                 for i, node in enumerate(node_list):
@@ -372,7 +382,7 @@ def get_line_graph(region, trj_region, out_adj_table, data_id):
         print(f'====> 社区个数：{cluster_num}, CON = {avg_CON(g, cluster_point_dict, node_name_cluster_dict, use_igraph)}')
 
     file_name = f'../result/{exp_log_name}.txt'
-    f = open(file_name, 'w')
+    f = open(file_name, 'w', encoding='utf-8')
     for log in exp_log:
         f.write(log + '\n')
     f.close()

@@ -13,7 +13,7 @@ def test_gpu_model():
     if os.path.isfile(best_model):
         print("=> loading best_model '{}'".format(best_model))
         # best_model = torch.load(best_model)
-        best_model = torch.load(best_model, map_location='cpu')
+        best_model = torch.load(best_model, map_location='cpu', weights_only=False)
         # print('best_model', best_model)
         with open("./region.pkl", 'rb') as file:
             trj_region = pickle.loads(file.read())
